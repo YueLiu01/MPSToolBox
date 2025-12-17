@@ -594,11 +594,15 @@ def sample_povm_measurements(psi, first_site=0, last_site=None, ops=None, rng=No
         total_weight *= weight
         if i != last_site:
             theta = theta / weight
-            vL_dim, p_dim, vR_dim = theta.shape
-            theta_arr = theta.to_ndarray().reshape(vL_dim * p_dim, vR_dim)
-            theta = npc.Array.from_ndarray_trivial(theta_arr, labels=['vL', 'vR'])
+            theta_mat = theta.combine_legs([['vL', 'p']], new_axes=[0])
+            theta_mat = theta_mat.replace_label(theta_mat.get_leg_labels()[0], 'vL')
+            theta_mat = theta_mat.replace_label(theta_mat.get_leg_labels()[1], 'vR')
+            _, R = npc.qr(theta_mat, inner_labels=['vR', 'vL'])
             B = psi.get_B(i + 1)
-            theta = npc.tensordot(theta, B, axes=['vR', 'vL'])
+            theta = npc.tensordot(R, B, axes=['vR', 'vL'])
+        elif psi.bc == 'finite' and first_site == 0 and last_site == psi.L - 1:
+            theta_scalar = theta.to_ndarray().reshape(-1).sum()
+            total_weight = total_weight * theta_scalar / weight
     if not complex_amplitude:
         total_weight = np.abs(total_weight)**2
     return sigmas, total_weight
