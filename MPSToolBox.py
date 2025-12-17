@@ -508,7 +508,120 @@ def Int2spinHalf(n,L):
     y = 2*Int2bit(n,L)-1
     return np.rint(y).astype(int)
 
+
+'''
+Fast Sampling from MPS
+'''
+def sample_projective_measurements(psi, first_site=0, last_site=None, ops=None, rng=None, norm_tol=1e-12, complex_amplitude=True):
+    '''
+    A wrapper or Tenpy's original sample_measurements function.
+    Returns sigmas, weight
+    For details, see https://tenpy.readthedocs.io/en/latest/reference/tenpy.networks.mps.MPS.html#tenpy.networks.mps.MPS.sample_measurements
+    '''
+    return psi.sample_measurements(first_site=first_site, last_site=last_site, ops=ops, rng=rng, norm_tol=norm_tol, complex_amplitude=complex_amplitude)
+
+
+class POVM():
+    '''
+    POVM class with properties:
+    kraus_ops: list of kraus operators as numpy arrays
+    outcomes: list of measurement outcomes corresponding to kraus operators
+    '''
+    def __init__(self, kraus_ops, outcomes):
+        self.kraus_ops = kraus_ops
+        self.outcomes = outcomes
+        # check povm validity
+        dim = kraus_ops[0].shape[0]
+        identity = np.zeros((dim, dim), dtype=complex)
+        for K in kraus_ops:
+            identity += K.conj().T @ K
+        if not np.allclose(identity, np.eye(dim), atol=1e-10):
+            raise ValueError("Invalid POVM: sum of K_i^† K_i does not equal identity.")
+
+
+def sample_povm_measurements(psi, first_site=0, last_site=None, ops=None, rng=None, norm_tol=1e-12, complex_amplitude=True):
+    '''
+    Sample POVM measurement outcomes using a similar algorithm as Tenpy's sample_measurements function.
+    '''
+    
+    # TODO: Check!
+    
+    if tuple(psi._p_label) != ('p', ):
+        raise NotImplementedError("Only works for a single physical 'p' leg")
+    if last_site is None:
+        last_site = psi.L - 1
+    if rng is None:
+        rng = np.random.default_rng()
+    if not ops:
+        raise ValueError("ops must be a non-empty list of POVM objects.")
+    
+    povm_kraus = []
+    for povm in ops:
+        if not isinstance(povm, POVM):
+            raise TypeError("ops must be a list of POVM instances.")
+        if len(povm.kraus_ops) != len(povm.outcomes):
+            raise ValueError("Each POVM must have the same number of kraus_ops and outcomes.")
+        kraus_list = []
+        for K in povm.kraus_ops:
+            kraus_list.append(npc.Array.from_ndarray_trivial(K, labels=['p_out', 'p_in']))
+        povm_kraus.append(kraus_list)
+
+    sigmas = []
+    total_weight = 1.
+    theta = psi.get_theta(first_site, n=1).replace_label('p0', 'p')
+    for i in range(first_site, last_site + 1):
+        # theta = wave function in basis vL [sigmas...] p vR
+        # where the `sigmas` are already fixed to the measurement results
+        povm_idx = (i - first_site) % len(povm_kraus)
+        current_kraus = povm_kraus[povm_idx]
+        current_outcomes = ops[povm_idx].outcomes
+        probs = []
+        theta_candidates = []
+        for K in current_kraus:
+            theta_tmp = npc.tensordot(theta, K, axes=[['p'], ['p_in']])
+            theta_tmp = theta_tmp.transpose([0, 2, 1]).replace_label('p_out', 'p')
+            prob = npc.norm(theta_tmp)**2
+            theta_candidates.append(theta_tmp)
+            probs.append(prob)
+        prob_sum = float(np.sum(probs).real)
+        if prob_sum < norm_tol:
+            raise ValueError("Probability sum below tolerance.")
+        probs = np.asarray(probs, dtype=float) / prob_sum
+        sigma_idx = int(rng.choice(len(probs), p=probs))
+        sigmas.append(current_outcomes[sigma_idx])
+        theta = theta_candidates[sigma_idx]
+        weight = npc.norm(theta)
+        total_weight *= weight
+        if i != last_site:
+            theta = theta / weight
+            vL_dim, p_dim, vR_dim = theta.shape
+            theta_arr = theta.to_ndarray().reshape(vL_dim * p_dim, vR_dim)
+            theta = npc.Array.from_ndarray_trivial(theta_arr, labels=['vL', 'vR'])
+            B = psi.get_B(i + 1)
+            theta = npc.tensordot(theta, B, axes=['vR', 'vL'])
+    if not complex_amplitude:
+        total_weight = np.abs(total_weight)**2
+    return sigmas, total_weight
+
+
 '''
 Finish.
 '''
 print("Imported MPSToolBox")
+
+
+'''
+Temperary testing area
+'''
+psi = load_pkl("notebooks/TCI_L100_chi500_PBC.pkl")
+# print(psi.get_site(1))
+s, weight = sample_projective_measurements(psi, first_site=0, last_site=20, ops=['Sigmax']*20)
+print(s)
+print(weight)
+
+povm = POVM(kraus_ops=[(Id + sX)/2, (Id - sX)/2], outcomes=[1,-1])
+# print(povm.kraus_ops)
+# print(povm.outcomes)
+s, weight = sample_povm_measurements(psi, first_site=0, last_site=20,ops=[povm]*20)
+print(s)
+print(weight)
