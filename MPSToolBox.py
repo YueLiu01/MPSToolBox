@@ -516,7 +516,7 @@ def sample_projective_measurements(psi, first_site=0, last_site=None, ops=None, 
     '''
     A wrapper or Tenpy's original sample_measurements function.
     Returns sigmas, weight
-    For details, see https://tenpy.readthedocs.io/en/latest/reference/tenpy.networks.mps.MPS.html#tenpy.networks.mps.MPS.sample_measurements
+    For details, see https://github.com/tenpy/tenpy/blob/v1.0.6/tenpy/networks/mps.py#L3837-L3934
     '''
     return psi.sample_measurements(first_site=first_site, last_site=last_site, ops=ops, rng=rng, norm_tol=norm_tol, complex_amplitude=complex_amplitude)
 
@@ -584,8 +584,8 @@ def sample_povm_measurements(psi, first_site=0, last_site=None, ops=None, rng=No
             theta_candidates.append(theta_tmp)
             probs.append(prob)
         prob_sum = float(np.sum(probs).real)
-        if prob_sum < norm_tol:
-            raise ValueError("Probability sum below tolerance.")
+        if abs(prob_sum - 1.0) > norm_tol:
+            raise ValueError("Probability sum not equal to 1. Tolerance exceeded.")
         probs = np.asarray(probs, dtype=float) / prob_sum
         sigma_idx = int(rng.choice(len(probs), p=probs))
         sigmas.append(current_outcomes[sigma_idx])
@@ -618,14 +618,14 @@ print("Imported MPSToolBox")
 Temperary testing area
 '''
 psi = load_pkl("notebooks/TCI_L100_chi500_PBC.pkl")
-# print(psi.get_site(1))
-s, weight = sample_projective_measurements(psi, first_site=0, last_site=20, ops=['Sigmax']*20)
-print(s)
+
+rng = np.random.default_rng(35)
+s, weight = sample_projective_measurements(psi, first_site=0, last_site=20, ops=['Sigmax']*11, rng=rng)
+print([int(i) for i in s])
 print(weight)
 
-povm = POVM(kraus_ops=[(Id + sX)/2, (Id - sX)/2], outcomes=[1,-1])
-# print(povm.kraus_ops)
-# print(povm.outcomes)
-s, weight = sample_povm_measurements(psi, first_site=0, last_site=20,ops=[povm]*20)
+rng = np.random.default_rng(35)
+povm = POVM(kraus_ops=[(Id - sX)/2, (Id + sX)/2], outcomes=[-1,+1])
+s, weight = sample_povm_measurements(psi, first_site=0, last_site=20,ops=[povm]*11, rng=rng)
 print(s)
 print(weight)
