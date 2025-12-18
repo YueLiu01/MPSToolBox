@@ -607,6 +607,36 @@ def sample_povm_measurements(psi, first_site=0, last_site=None, ops=None, rng=No
         total_weight = np.abs(total_weight)**2
     return sigmas, total_weight
 
+def weak_measurement_pauli(op : np.ndarray, beta, real=False) -> POVM:
+    '''
+    Construct weak measurement POVM object for a given Pauli operator `op` and measurement strength `beta`.
+    The Kraus operators are proportional to exp(beta * op) and exp(-beta * op).
+    op: numpy array, Pauli operator (e.g., sX, sY, sZ or their combinations)
+    beta: float, measurement strength
+    real: bool, if True, return only the real part of the Kraus operators. (This can make sampling faster.)
+    Return: POVM object
+    '''
+    op = np.asarray(op, dtype=complex)
+    if op.shape[0] != op.shape[1]:
+        raise ValueError("Operator must be square.")
+    dim = op.shape[0]
+    identity = np.eye(dim, dtype=complex)
+    if not np.allclose(op @ op, identity, atol=1e-10):
+        raise ValueError("Weak measurement requires a Pauli-like operator with op^2 = I.")
+    beta = float(beta)
+    abs_beta = abs(beta)
+    exp_neg2b = np.exp(-2.0 * abs_beta)
+    denom = np.sqrt(1.0 + exp_neg2b * exp_neg2b)  # sqrt(1 + exp(-4|beta|))
+    a = 0.5 * (1.0 + exp_neg2b) / denom  # norm * cosh(beta)
+    s = 1.0 if beta >= 0.0 else -1.0
+    one_minus = -np.expm1(-2.0 * abs_beta)         # 1 - exp(-2|beta|)
+    c = 0.5 * s * one_minus / denom                # norm * sinh(beta)
+    K_plus = a * identity + c * op
+    K_minus = a * identity - c * op
+    if real:
+        K_plus = K_plus.real
+        K_minus = K_minus.real
+    return POVM(kraus_ops=[K_minus, K_plus], outcomes=[-1, +1])
 
 '''
 Finish.
@@ -620,12 +650,20 @@ Temperary testing area
 psi = load_pkl("notebooks/TCI_L100_chi500_PBC.pkl")
 
 rng = np.random.default_rng(35)
-s, weight = sample_projective_measurements(psi, first_site=0, last_site=20, ops=['Sigmax']*11, rng=rng)
+s, weight = sample_projective_measurements(psi, first_site=0, ops=['Sigmax'], rng=rng)
 print([int(i) for i in s])
 print(weight)
 
 rng = np.random.default_rng(35)
 povm = POVM(kraus_ops=[(Id - sX)/2, (Id + sX)/2], outcomes=[-1,+1])
-s, weight = sample_povm_measurements(psi, first_site=0, last_site=20,ops=[povm]*11, rng=rng)
+s, weight = sample_povm_measurements(psi, first_site=0 ,ops=[povm], rng=rng)
 print(s)
 print(weight)
+
+rng = np.random.default_rng(35)
+povm = weak_measurement_pauli(sX, beta=2, real=True)
+
+s, weight = sample_povm_measurements(psi, first_site=0 ,ops=[povm], rng=rng)
+print(s)
+print(weight)
+
