@@ -70,3 +70,4 @@ def second_moment_snapshot(outcomes_anc, observable):
     _, labels, counts = np.unique(outcomes_anc, axis=0, return_inverse=True, return_counts=True)
     sums = np.bincount(labels, weights=observable, minlength=counts.size)
     return np.sum((sums * sums) / counts) / observable.size
+
