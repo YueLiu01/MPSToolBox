@@ -543,9 +543,6 @@ def sample_povm_measurements(psi, first_site=0, last_site=None, ops=None, rng=No
     '''
     Sample POVM measurement outcomes using a similar algorithm as Tenpy's sample_measurements function.
     '''
-    
-    # TODO: Check!
-    
     if tuple(psi._p_label) != ('p', ):
         raise NotImplementedError("Only works for a single physical 'p' leg")
     if last_site is None:
@@ -607,6 +604,105 @@ def sample_povm_measurements(psi, first_site=0, last_site=None, ops=None, rng=No
         total_weight = np.abs(total_weight)**2
     return sigmas, total_weight
 
+def sample_multi_povm_measurements(psi, first_site=0, last_site=None, ops=None, rng=None, norm_tol=1e-12, complex_amplitude=True):
+    '''
+    Similar to sample_povm_measurements, but each site are measured by multiple POVMs and all of the outcomes are stored as a list.
+    ops: list of list of POVM objects. Each inner list corresponds to POVMs on one site.
+    
+    Return: sigmas_list, weight
+    sigmas_list: list of lists of measurement outcomes for each site.
+    weight: total weight of the measurement outcome.
+    '''
+    
+    # TODO: Check!
+    
+    if tuple(psi._p_label) != ('p', ):
+        raise NotImplementedError("Only works for a single physical 'p' leg")
+    if last_site is None:
+        last_site = psi.L - 1
+    if rng is None:
+        rng = np.random.default_rng()
+    if not ops:
+        raise ValueError("ops must be a non-empty list.")
+
+    # Allow convenience input: list[POVM] -> treat as one POVM per site (repeating pattern).
+    if isinstance(ops[0], POVM):
+        ops = [[povm] for povm in ops]
+
+    compiled_ops = []
+    for site_ops in ops:
+        if isinstance(site_ops, POVM):
+            site_ops = [site_ops]
+        if not isinstance(site_ops, (list, tuple)) or len(site_ops) == 0:
+            raise ValueError("Each element of ops must be a non-empty list of POVM objects.")
+        compiled_site = []
+        for povm in site_ops:
+            if not isinstance(povm, POVM):
+                raise TypeError("ops must be a list of lists of POVM instances.")
+            if len(povm.kraus_ops) != len(povm.outcomes):
+                raise ValueError("Each POVM must have the same number of kraus_ops and outcomes.")
+            kraus_list = [npc.Array.from_ndarray_trivial(K, labels=['p_out', 'p_in']) for K in povm.kraus_ops]
+            compiled_site.append((kraus_list, povm.outcomes))
+        compiled_ops.append(compiled_site)
+
+    rng_choice = rng.choice
+    npc_norm = npc.norm
+    tensordot = npc.tensordot
+
+    sigmas_list = []
+    total_weight = 1.0
+    theta = psi.get_theta(first_site, n=1).replace_label('p0', 'p')
+    last_weight = None
+
+    for i in range(first_site, last_site + 1):
+        site_pattern = compiled_ops[(i - first_site) % len(compiled_ops)]
+        site_sigmas = []
+        for j, (kraus_list, outcomes) in enumerate(site_pattern):
+            probs = []
+            theta_candidates = []
+            for K in kraus_list:
+                theta_tmp = tensordot(theta, K, axes=[['p'], ['p_in']])
+                theta_tmp = theta_tmp.transpose([0, 2, 1]).replace_label('p_out', 'p')
+                prob = npc_norm(theta_tmp) ** 2
+                theta_candidates.append(theta_tmp)
+                probs.append(prob)
+            prob_sum = float(np.sum(probs).real)
+            if abs(prob_sum - 1.0) > norm_tol:
+                raise ValueError("Probability sum not equal to 1. Tolerance exceeded.")
+            probs = np.asarray(probs, dtype=float)
+            if prob_sum != 1.0:
+                probs /= prob_sum
+            sigma_idx = int(rng_choice(len(probs), p=probs))
+            site_sigmas.append(outcomes[sigma_idx])
+            theta = theta_candidates[sigma_idx]
+            weight = float(np.sqrt(probs[sigma_idx] * prob_sum))
+            total_weight *= weight
+
+            is_last_povm_on_site = (j == len(site_pattern) - 1)
+            is_last_site = (i == last_site)
+            if not (is_last_site and is_last_povm_on_site):
+                theta = theta / weight
+            else:
+                last_weight = weight
+
+        sigmas_list.append(site_sigmas)
+
+        if i != last_site:
+            theta_mat = theta.combine_legs([['vL', 'p']], new_axes=[0])
+            theta_mat = theta_mat.replace_label(theta_mat.get_leg_labels()[0], 'vL')
+            theta_mat = theta_mat.replace_label(theta_mat.get_leg_labels()[1], 'vR')
+            _, R = npc.qr(theta_mat, inner_labels=['vR', 'vL'])
+            B = psi.get_B(i + 1)
+            theta = tensordot(R, B, axes=['vR', 'vL'])
+        elif psi.bc == 'finite' and first_site == 0 and last_site == psi.L - 1:
+            theta_scalar = theta.to_ndarray().reshape(-1).sum()
+            total_weight = total_weight * theta_scalar / last_weight
+
+    if not complex_amplitude:
+        total_weight = np.abs(total_weight) ** 2
+    return sigmas_list, total_weight
+
+
 def weak_measurement_pauli(op : np.ndarray, beta, real=False) -> POVM:
     '''
     Construct weak measurement POVM object for a given Pauli operator `op` and measurement strength `beta`.
@@ -642,28 +738,3 @@ def weak_measurement_pauli(op : np.ndarray, beta, real=False) -> POVM:
 Finish.
 '''
 print("Imported MPSToolBox")
-
-
-'''
-Temperary testing area
-'''
-psi = load_pkl("notebooks/TCI_L100_chi500_PBC.pkl")
-
-rng = np.random.default_rng(35)
-s, weight = sample_projective_measurements(psi, first_site=0, ops=['Sigmax'], rng=rng)
-print([int(i) for i in s])
-print(weight)
-
-rng = np.random.default_rng(35)
-povm = POVM(kraus_ops=[(Id - sX)/2, (Id + sX)/2], outcomes=[-1,+1])
-s, weight = sample_povm_measurements(psi, first_site=0 ,ops=[povm], rng=rng)
-print(s)
-print(weight)
-
-rng = np.random.default_rng(35)
-povm = weak_measurement_pauli(sX, beta=2, real=True)
-
-s, weight = sample_povm_measurements(psi, first_site=0 ,ops=[povm], rng=rng)
-print(s)
-print(weight)
-
