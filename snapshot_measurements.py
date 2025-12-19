@@ -71,3 +71,41 @@ def second_moment_snapshot(outcomes_anc, observable):
     sums = np.bincount(labels, weights=observable, minlength=counts.size)
     return np.sum((sums * sums) / counts) / observable.size
 
+def second_moment_snapshot_optimize(outcomes_anc, observable, f, params0=None, method="L-BFGS-B"):
+    r'''
+    outcomes_anc: numpy array of shape (N, L) where N is the number of measurements and L is the length of the system.
+    observable: numpy array of shape (N,) where N is the number of measurements.
+    f(s, *params): a function that takes an array s of shape (L,) and a set of parameters, and returns a float.
+    params0: initial parameters for the function f.
+    
+    Returns:
+    params, value
+    params: the parameter that maximizes (1/N) \sum_i 2 O_i f(s_i) - (1/N) \sum_i f(s_i)^2.
+    value: the maximum value of (1/N) \sum_i 2 O_i f(s_i) - (1/N) \sum_i f(s_i)^2 obtained at params.
+    '''
+    outcomes_anc = np.asarray(outcomes_anc)
+    observable = np.asarray(observable, dtype=float)
+    if outcomes_anc.shape[0] != observable.shape[0]:
+        raise ValueError("Number of ancilla outcomes and observables must match.")
+
+    def _evaluate(params):
+        vals = np.fromiter((f(s, *params) for s in outcomes_anc), dtype=float, count=outcomes_anc.shape[0])
+        diff = vals - observable
+        return np.mean(diff * diff), vals
+
+    if params0 is None:
+        try:
+            vals = np.fromiter((f(s) for s in outcomes_anc), dtype=float, count=outcomes_anc.shape[0])
+        except TypeError as exc:
+            raise ValueError("params0 must be provided when f requires parameters.") from exc
+        value = np.mean(2.0 * observable * vals - vals * vals)
+        return tuple(), value
+
+    params0 = np.asarray(params0, dtype=float)
+    result = scipy.optimize.minimize(lambda p: _evaluate(p)[0], params0, method=method)
+    if not result.success:
+        print(f"second_moment_snapshot_optimize: optimization failed ({result.message}); returning initial params.")
+    params_opt = result.x if result.success else params0
+    _, vals = _evaluate(params_opt)
+    value = np.mean(2.0 * observable * vals - vals * vals)
+    return params_opt, value
