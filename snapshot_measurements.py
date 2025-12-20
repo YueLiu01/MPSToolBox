@@ -1,52 +1,5 @@
 import numpy as np
-import tenpy.linalg.np_conserved as npc
 import scipy
-import matplotlib.pyplot as plt
-np.set_printoptions(precision=5, suppress=True, linewidth=100)
-plt.rcParams['figure.dpi'] = 150
-import tenpy
-import tenpy.linalg.np_conserved as npc
-from tenpy.algorithms import dmrg
-from tenpy.networks.mps import MPS
-from tenpy.models.tf_ising import TFIChain
-from tenpy.networks.site import SpinSite
-from tenpy.networks.mps import TransferMatrix
-from tenpy.models.model import CouplingMPOModel, NearestNeighborModel
-from tenpy.models.lattice import Chain
-from tenpy.linalg import np_conserved as npc
-import numpy as np
-#tenpy.tools.misc.setup_logging(to_stdout="INFO")
-from tenpy.models.lattice import Lattice
-from tenpy.models.model import CouplingModel,MPOModel
-from tenpy.networks.site import SpinHalfSite, kron
-from scipy.optimize import curve_fit
-import pickle
-import MPSToolBox as my
-
-
-psi = my.load_pkl("../wavefunctions/CritIsingModel_L10_chi300_PBC_.pkl")
-beta_anc = 0.2
-beta_sys = np.inf
-povm_1 = my.weak_measurement_pauli(my.sZ, beta=beta_anc, real=True)
-povm_2 = my.weak_measurement_pauli(my.sZ, beta=beta_sys, real=True)
-N = 100 # Number of measurements
-
-outcomes_anc = []
-outcomes_sys = []
-for seed in range(N):
-    rng = np.random.default_rng(seed=seed)
-    s, weight = my.sample_multi_povm_measurements(psi, first_site=0, ops=[[povm_1, povm_2]]*psi.L, rng=rng)
-    s = np.array(s)
-    s_anc = s[:,0]
-    s_sys = s[:,1]
-    outcomes_anc.append(s_anc)
-    outcomes_sys.append(s_sys)
-    
-outcomes_anc = np.array(outcomes_anc)
-outcomes_sys = np.array(outcomes_sys)
-
-observable = outcomes_sys[:,0]
-
 
 def second_moment_snapshot(outcomes_anc, observable):
     r'''
@@ -109,3 +62,102 @@ def second_moment_snapshot_optimize(outcomes_anc, observable, f, params0=None, m
     _, vals = _evaluate(params_opt)
     value = np.mean(2.0 * observable * vals - vals * vals)
     return params_opt, value
+
+def f_window_average_hardcut(s, center, length_scale, amplitude, periodic=True):
+    r'''
+    s: ndarray of shape (L,) where L is the length of the system.
+    center: center of the window
+    length_scale: length scale of the window, the size of the window is 2*length_scale
+    amplitude: overall prefactor multiplier
+    periodic: whether to use periodic boundary conditions
+    
+    Returns:
+    The window-averaged value of s at center.
+    '''
+    s = np.asarray(s, dtype=float)
+    L = s.shape[0]
+    if L == 0:
+        return 0.0
+
+    c = int(round(center))
+    w = int(length_scale)
+    if w <= 0:
+        return 0.0
+
+    if periodic:
+        idx = (np.arange(c - w, c + w) % L)
+        window = s[idx]
+    else:
+        start = max(0, c - w)
+        end = min(L, c + w)
+        if end <= start:
+            return 0.0
+        window = s[start:end]
+
+    return amplitude * np.mean(window)
+
+def f_window_average_softcut(s, center, length_scale, amplitude, periodic=True):
+    r'''
+    s: ndarray of shape (L,) where L is the length of the system.
+    center: center of the window
+    length_scale: length scale of the window, the size of the window is 2*length_scale
+    amplitude: overall prefactor multiplier
+    periodic: whether to use periodic boundary conditions
+    
+    Returns:
+    The window-averaged value of s at center. The weights decay as a gaussian function away from the center with standard deviation length_scale.
+    '''
+    s = np.asarray(s, dtype=float)
+    L = s.shape[0]
+    if L == 0:
+        return 0.0
+
+    sigma = float(length_scale)
+    if sigma <= 0.0:
+        return 0.0
+
+    center = float(center)
+    idx = np.arange(L, dtype=float)
+    if periodic:
+        # minimal distance on a ring preserves periodicity
+        dist = np.abs(((idx - center + 0.5 * L) % L) - 0.5 * L)
+    else:
+        dist = np.abs(idx - center)
+
+    weights = np.exp(-0.5 * (dist / sigma) ** 2)
+    norm = weights.sum()
+    if norm == 0.0:
+        return 0.0
+
+    return amplitude * np.dot(s, weights) / norm
+    
+'''
+Testing area:
+'''
+# import matplotlib.pyplot as plt
+# L = 10
+# for beta in [0.3]:
+#     outcomes_sys = np.load('data/CritIsing_L'+str(L)+'_beta'+str(beta)+'_Zoutcomes_sys.npy')
+#     outcomes_anc = np.load('data/CritIsing_L'+str(L)+'_beta'+str(beta)+'_Zoutcomes_anc.npy')
+#     _, N = outcomes_sys.shape
+#     N_list = np.logspace(1, 5, 30).astype(int)
+#     N_shuffle = 100
+#     results = []
+#     for n in N_list:
+#         result_i = []
+#         for i in range(L):
+#             for _ in range(N_shuffle):
+#                 observable = outcomes_sys[:,i]
+                
+#                 # shuffle outcomes_anc together with observable
+#                 indices = np.random.permutation(N)
+                
+#                 s = outcomes_anc[indices,:][:n]
+#                 o = observable[indices][:n]
+                
+#                 def myfun(s, length_scale, amplitude):
+#                     return f_window_average_hardcut(s, i, length_scale, amplitude, periodic=True)
+                
+#                 result_i.append(second_moment_snapshot_optimize(s, o, f=myfun, params0=[L/4, 1.0])[1])
+#         results.append(np.mean(result_i))
+#     plt.semilogx(N_list, results)
