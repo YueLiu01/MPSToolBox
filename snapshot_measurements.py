@@ -3,6 +3,7 @@ import scipy
 import time
 import numba as nb
 from numba.core.errors import TypingError
+from sklearn.linear_model import LinearRegression
 
 def second_moment_snapshot(outcomes_anc, observable):
     r'''
@@ -581,49 +582,144 @@ def second_moment_snapshot_optimize_njit_withhessian(outcomes_anc, observable, f
     value = np.mean(2.0 * observable * vals - vals * vals)
     return params_opt, value, success
     
+    
+def second_moment_snapshot_linear_regression(outcomes_anc, observable, center=0, periodic=True, enforce_reflection_symmetry=False, bias=True):
+    r'''
+    In this function we take f(s) to be a linear combination of components of s, i.e., f(s) = b + \sum_j a_j s_j where s_j is the j-th component of s. And a_j and b are the parameters to be optimized. Note that the target function (1/N) \sum_i 2 O_i f(s_i) - (1/N) \sum_i f(s_i)^2 can be rewritten as - (1/N) \sum_i (f(s_i) - O_i)^2 + (1/N) \sum_i O_i^2. Thus maximizing the target function is equivalent to minimizing the mean squared error between f(s_i) and O_i.
+    
+    outcomes_anc: numpy array of shape (N, L) where N is the number of measurements and L is the length of the system.
+    observable: numpy array of shape (N,) where N is the number of measurements.
+    center (int): the index of the center of the observable.
+    periodic (bool): whether to use periodic boundary conditions.
+    enforce_reflection_symmetry (bool): whether to enforce reflection symmetry on the parameters. If True, a_{center + d} = a_{center - d} (note that if periodic=True, the reflection symmetry should be considered with periodic boundary conditions).
+    bias (bool): whether to include a constant term b in the linear combination.
+    
+    Returns:
+    params, value
+    params: the parameters a_j that maximizes (1/N) \sum_i 2 O_i f(s_i) - (1/N) \sum_i f(s_i)^2. It should be a numpy array of shape (L,) (if bias=True, the last entry corresponds to the bias term). If there are multiple optimal solutions, one of them is returned.
+    value: the maximum value of (1/N) \sum_i 2 O_i f(s_i) - (1/N) \sum_i f(s_i)^2 obtained at params. It can be 0 if the number of measurements is less than the number of parameters.
+    '''
+    outcomes_anc = np.asarray(outcomes_anc, dtype=float)
+    observable = np.asarray(observable, dtype=float)
+    if outcomes_anc.shape[0] != observable.shape[0]:
+        raise ValueError("Number of ancilla outcomes and observables must match.")
+
+    n_samples, length = outcomes_anc.shape
+
+    if enforce_reflection_symmetry:
+        center_idx = int(center)
+        group_id = np.full(length, -1, dtype=int)
+        groups = []
+        for j in range(length):
+            if group_id[j] != -1:
+                continue
+            partner = (2 * center_idx - j) % length if periodic else (2 * center_idx - j)
+            if not periodic and (partner < 0 or partner >= length):
+                partner = j
+            if group_id[partner] != -1:
+                group_id[j] = group_id[partner]
+                continue
+            gid = len(groups)
+            if partner == j:
+                groups.append((j,))
+            else:
+                groups.append((j, partner))
+            group_id[j] = gid
+            if partner != j:
+                group_id[partner] = gid
+
+        n_features = len(groups)
+        X = np.empty((n_samples, n_features), dtype=float)
+        for gid, idxs in enumerate(groups):
+            if len(idxs) == 1:
+                X[:, gid] = outcomes_anc[:, idxs[0]]
+            else:
+                X[:, gid] = outcomes_anc[:, idxs].sum(axis=1)
+    else:
+        X = outcomes_anc.astype(float, copy=False)
+        n_features = length
+
+    if bias:
+        X = np.hstack((X, np.ones((n_samples, 1), dtype=float)))
+
+    coef, _, _, _ = np.linalg.lstsq(X, observable, rcond=None)
+    preds = X @ coef
+    value = np.mean(2.0 * observable * preds - preds * preds)
+
+    if enforce_reflection_symmetry:
+        params = np.empty(length, dtype=float)
+        for j in range(length):
+            params[j] = coef[group_id[j]]
+    else:
+        params = coef[:length]
+
+    if bias:
+        params = np.concatenate((params, np.array([coef[-1]])))
+    return params, value
+
+
+def second_moment_snapshot_linear_regression_sklearn(outcomes_anc, observable, center=0, periodic=True, enforce_reflection_symmetry=False, bias=True):
+    r'''
+    Same as second_moment_snapshot_linear_regression but uses sklearn's LinearRegression for fitting.
+    '''
+
+    outcomes_anc = np.asarray(outcomes_anc, dtype=float)
+    observable = np.asarray(observable, dtype=float)
+    if outcomes_anc.shape[0] != observable.shape[0]:
+        raise ValueError("Number of ancilla outcomes and observables must match.")
+
+    n_samples, length = outcomes_anc.shape
+
+    if enforce_reflection_symmetry:
+        center_idx = int(center)
+        group_id = np.full(length, -1, dtype=int)
+        groups = []
+        for j in range(length):
+            if group_id[j] != -1:
+                continue
+            partner = (2 * center_idx - j) % length if periodic else (2 * center_idx - j)
+            if not periodic and (partner < 0 or partner >= length):
+                partner = j
+            if group_id[partner] != -1:
+                group_id[j] = group_id[partner]
+                continue
+            gid = len(groups)
+            if partner == j:
+                groups.append((j,))
+            else:
+                groups.append((j, partner))
+            group_id[j] = gid
+            if partner != j:
+                group_id[partner] = gid
+
+        n_features = len(groups)
+        X = np.empty((n_samples, n_features), dtype=float)
+        for gid, idxs in enumerate(groups):
+            if len(idxs) == 1:
+                X[:, gid] = outcomes_anc[:, idxs[0]]
+            else:
+                X[:, gid] = outcomes_anc[:, idxs].sum(axis=1)
+    else:
+        X = outcomes_anc.astype(float, copy=False)
+
+    model = LinearRegression(fit_intercept=bias)
+    model.fit(X, observable)
+    preds = model.predict(X)
+    value = np.mean(2.0 * observable * preds - preds * preds)
+
+    coef = model.coef_
+    if enforce_reflection_symmetry:
+        params = np.empty(length, dtype=float)
+        for j in range(length):
+            params[j] = coef[group_id[j]]
+    else:
+        params = coef[:length]
+
+    if bias:
+        params = np.concatenate((params, np.array([model.intercept_])))
+    return params, value
+
+
 '''
 Testing area:
 '''
-
-# def _make_myfun_with_hessian(center):
-#     @nb.njit
-#     def _inner(s, params):
-#         return f_window_average_softcut_njit_with_hessian(s, center, params[0], params[1], True)
-#     return _inner
-
-# method = 'softcut'  # hessian-enabled path
-# myfun_cache = {}
-# for L in [8]:
-#     for beta in [0.3]:
-#         outcomes_sys = np.load('data/CritIsing_L'+str(L)+'_beta'+str(beta)+'_Zoutcomes_sys.npy')
-#         outcomes_anc = np.load('data/CritIsing_L'+str(L)+'_beta'+str(beta)+'_Zoutcomes_anc.npy')
-#         t0 = time.perf_counter()
-#         N, _ = outcomes_sys.shape
-#         N_list = np.append(np.array([1,2,3,4,5, 6, 7, 8, 9]).astype(int), np.logspace(1, 3, 21).astype(int))
-#         N_shuffle = 100
-#         results = []
-#         for n in N_list:
-#             result_i = []
-#             for i in range(L):
-#                 if i not in myfun_cache:
-#                     myfun_cache[i] = _make_myfun_with_hessian(i)
-#                 myfun = myfun_cache[i]
-#                 for _ in range(N_shuffle):
-#                     observable = outcomes_sys[:,i]
-                    
-#                     # shuffle outcomes_anc together with observable
-#                     indices = np.random.permutation(N)
-                    
-#                     s = outcomes_anc[indices,:][:n]
-#                     o = observable[indices][:n]
-
-#                     p, v, success = second_moment_snapshot_optimize_njit_withhessian(s, o, f_njit_with_hessian=myfun, params0=[L/4, 1.0], method="Newton-CG")
-#                     if success:
-#                         result_i.append(v)
-#                     else:
-#                         print(f"Optimization failed for L={L}, beta={beta}, n={n}, i={i}. Skipping this run.")
-#             results.append(np.mean(result_i))
-#             print(np.array(result_i).shape)
-#         elapsed = time.perf_counter() - t0
-#         print(results)
-#         print(f"Timing: L={L}, beta={beta}, method={method}, elapsed={elapsed:.2f}s")
