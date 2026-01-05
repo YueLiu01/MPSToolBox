@@ -293,24 +293,24 @@ def measurement_altered_moments(psi, k, povm_list, site_ind, ops):
     return float(result)
 
 # add a test code for L=10 critical ising model
-if __name__ == "__main__":
-    L = 20
-    J = 1.0
-    h = 1.0
-    energy, wavefunction = ground_state_Ising(L, J, h, bc='periodic')
-    print(f"Ground state energy for L={L}, J={J}, h={h}: {energy}")
-    print(f"Ground state wavefunction: {wavefunction}")
-    np.save('CritIsing_L'+str(L)+'_ground_state.npy', wavefunction)
+# if __name__ == "__main__":
+    # L = 20
+    # J = 1.0
+    # h = 1.0
+    # energy, wavefunction = ground_state_Ising(L, J, h, bc='periodic')
+    # print(f"Ground state energy for L={L}, J={J}, h={h}: {energy}")
+    # print(f"Ground state wavefunction: {wavefunction}")
+    # np.save('CritIsing_L'+str(L)+'_ground_state.npy', wavefunction)
 
-    from utils import weak_measurement_pauli, sZ
+    # from utils import weak_measurement_pauli, sZ
 
-    beta = 0.3
-    povm = weak_measurement_pauli(sZ, beta=beta, real=True)
+    # beta = 0.3
+    # povm = weak_measurement_pauli(sZ, beta=beta, real=True)
 
-    ops = [(sZ, 0)]
-    povm_list = [povm] * L
-    site_ind = np.arange(L)
-    altered_moment = measurement_altered_moments(wavefunction, k=2, povm_list=povm_list, site_ind=site_ind, ops=ops)
-    print(f"Measurement-altered second moment: {altered_moment}")
-    np.save('CritIsing_L'+str(L)+'_beta'+str(beta)+'_Zsecond_moment_theory.npy', altered_moment)
+    # ops = [(sZ, 0)]
+    # povm_list = [povm] * L
+    # site_ind = np.arange(L)
+    # altered_moment = measurement_altered_moments(wavefunction, k=2, povm_list=povm_list, site_ind=site_ind, ops=ops)
+    # print(f"Measurement-altered second moment: {altered_moment}")
+    # np.save('CritIsing_L'+str(L)+'_beta'+str(beta)+'_Zsecond_moment_theory.npy', altered_moment)
     
