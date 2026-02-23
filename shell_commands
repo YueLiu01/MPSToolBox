@@ -1,0 +1,276 @@
+sbatch \
+  --job-name=FastSampling_20 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=20 BETA_LIST=0.1,0.2,0.3,0.5,0.8,1.0,1.5,2.0 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_40 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=40 BETA_LIST=0.1,0.2,0.3,0.5 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_40 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=40 BETA_LIST=0.8,1.0,1.5,2.0 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=0.1 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=0.2 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=0.3 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=0.4 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=0.5 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=0.8 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=1.0 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=1.5 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_100 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=100 BETA_LIST=2.0 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=0.1 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=0.2 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=0.3 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=0.4 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=0.5 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=0.8 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=1.0 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=1.5 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_200 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=200 BETA_LIST=2.0 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_60 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=60 BETA_LIST=0.1,0.2,0.3,0.5 N_WORKERS=16; python uniform_sample_correlation.py"'
+
+sbatch \
+  --job-name=FastSampling_60 \
+  --nodes=1 \
+  --ntasks-per-node=1 \
+  --cpus-per-task=16 \
+  --mem=64G \
+  --time=96:00:00 \
+  --output=job_%x.%j.log \
+  --error=job_%x.%j.log \
+  --hint=nomultithread \
+  --wrap='bash -lc "source ~/.bashrc; mamba activate tenpy; export N=10000 L_LIST=60 BETA_LIST=0.8,1.0,1.5,2.0 N_WORKERS=16; python uniform_sample_correlation.py"'
