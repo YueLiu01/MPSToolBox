@@ -1,1 +1,5 @@
 temp/
+figures/
+__pycache__/
+.vscode/
+.codex/
